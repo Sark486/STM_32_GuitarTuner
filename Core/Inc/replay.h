@@ -2,6 +2,7 @@
 #define REPLAY_H
 
 #include <stdint.h>
+#include "pitch.h"
 
 /*
   Replay recorded samples through the pitch module and print the results with the cycles
@@ -15,7 +16,8 @@
     END
 
   count is in samples; whole blocks of PITCH_BLOCK_SIZE are used, up to REPLAY_MAX_PUSHES.
+  state must not be null; state is re-initialized each run; state is not cleared after the run, caller should re-init it
 */
-void replay_run(const int16_t *samples, uint32_t count);
+void replay_run(pitch_t *state, const int16_t *samples, uint32_t count);
 
 #endif /* REPLAY_H */

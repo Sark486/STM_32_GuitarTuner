@@ -20,6 +20,7 @@
 #include "main.h"
 #include "dma.h"
 #include "i2s.h"
+#include "stm32f4xx_hal_gpio.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -30,6 +31,7 @@
 #include <stdio.h>
 #include "mic.h"
 #include "level.h"
+#include "pitch.h"
 #if TUNER_CAPTURE
 #include "capture.h"
 #include "replay.h"
@@ -45,6 +47,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+static_assert(MIC_BLOCK_SAMPLES % PITCH_BLOCK_SIZE == 0, "MIC_BLOCK_SAMPLES doesn't divide evenly by PITCH_BLOCK_SIZE");
+static_assert(MIC_BLOCK_SAMPLES <= (PITCH_HOP * PITCH_DECIM), "MIC_BLOCK_SAMPLES is bigger than one full hop");
+static const size_t pushes_per_mic_block = MIC_BLOCK_SAMPLES / PITCH_BLOCK_SIZE;
 
 /* USER CODE END PD */
 
@@ -62,6 +68,8 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+
+static void convert_32_to_16(int32_t const *samples, int16_t *out, size_t size);
 
 /* USER CODE END PFP */
 
@@ -138,6 +146,11 @@ int main(void)
 
   static int32_t samples[MIC_BLOCK_SAMPLES];
   static float dbfs;
+  static pitch_t pitch_state;
+  static int16_t buffer[MIC_BLOCK_SAMPLES];
+  pitch_init(&pitch_state);
+
+
 #if TUNER_CAPTURE
   static bool capture_filled = false; // the capture buffer holds a recording (c) or an upload (u)
 #endif
@@ -178,7 +191,7 @@ int main(void)
         // the capture buffer through the pitch module, every push timed
         if (capture_filled)
         {
-          replay_run(capture_get_buffer(), capture_get_sample_count());
+          replay_run(&pitch_state, capture_get_buffer(), capture_get_sample_count());
           mic_resync(); // main was busy for about a second: skip the halves that piled up
         }
         else
@@ -193,14 +206,32 @@ int main(void)
       {
         // ignore it
       }
+      pitch_init(&pitch_state);
 #endif
     }
     if (mic_read_block(samples))
     {
-      if (level_process(samples, MIC_BLOCK_SAMPLES, &dbfs))
+      HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_SET);
+      uint32_t start = cycles_get();
+      bool got_result = false;
+      pitch_result_t result;
+      
+      (void)level_process(samples, MIC_BLOCK_SAMPLES, &dbfs);
+      convert_32_to_16(samples, buffer, MIC_BLOCK_SAMPLES);
+      for (size_t i = 0; i < pushes_per_mic_block; i++)
       {
-        printf("dBFS=%.1f ovr=%" PRIu32 "\r\n", (double)dbfs, mic_get_overrun_count());
+        if (pitch_push(&pitch_state, buffer + (i * PITCH_BLOCK_SIZE), PITCH_BLOCK_SIZE, &result))
+        {
+          got_result = true;
+        }
       }
+      uint32_t end = cycles_get();
+      if (got_result)
+      {
+        printf("F,%.2f,%.3f,%d,%" PRIu32 ",%" PRIu32 "\r\n",
+             (double)result.freq_hz, (double)result.confidence, result.valid, end - start, mic_get_overrun_count());
+      }
+      HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_RESET);
     }
   }
   /* USER CODE END 3 */
@@ -252,6 +283,14 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+static void convert_32_to_16(int32_t const *samples, int16_t *out, size_t size)
+{
+  for(size_t i = 0; i < size; i++)
+  {
+    out[i] = (int16_t)(samples[i] >> 8);
+  }
+}
 
 /* USER CODE END 4 */
 

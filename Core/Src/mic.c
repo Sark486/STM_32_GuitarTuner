@@ -1,4 +1,5 @@
 #include "mic.h"
+#include "main.h"
 #include <stdint.h>
 
 #define MIC_HALFWORDS_PER_FRAME  4U   // 2 channels × 2 half-words (24-bit in 32-bit slot)
@@ -59,7 +60,8 @@ void HAL_I2S_RxHalfCpltCallback(I2S_HandleTypeDef *hi2s)
 {
   if(hi2s->Instance == i2s_handle->Instance)
   {
-      blocks_filled++;
+    HAL_GPIO_WritePin(MARK2_GPIO_Port, MARK2_Pin, GPIO_PIN_SET);
+    blocks_filled++;
   }
 }
 
@@ -67,7 +69,8 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
 {
   if(hi2s->Instance == i2s_handle->Instance)
   {
-      blocks_filled++;
+    HAL_GPIO_WritePin(MARK2_GPIO_Port, MARK2_Pin, GPIO_PIN_RESET);
+    blocks_filled++;
   }
 }
 
