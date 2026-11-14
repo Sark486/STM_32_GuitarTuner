@@ -53,7 +53,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/retarget.c
     Core/Src/mic.c
     Core/Src/cycles.c
-)
+    )
 
 # Optional capture module (record + send raw samples over UART) and replay benchmark (upload + replay)
 option(TUNER_CAPTURE "Should capture module be included" ON)
