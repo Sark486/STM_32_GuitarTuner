@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define PITCH_BLOCK_SIZE       256U                                             // samples at 32 kHz per push: one DMA half, 8 ms
+#define PITCH_BLOCK_SIZE       256U                                             // samples at 32 kHz per push, 8 ms
 #define PITCH_HOP              256U                                             // analysis runs every 256 decimated samples (8 kHz) which is 32 ms or 4 pushes
 #define PITCH_DECIM            4U                                               // 32kHz to 8kHz
 #define PITCH_BLOCK_SIZE_DECIM (PITCH_BLOCK_SIZE / PITCH_DECIM)                 // samples at 8kHz per push, 8ms
