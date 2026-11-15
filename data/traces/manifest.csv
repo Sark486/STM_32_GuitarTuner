@@ -1,0 +1,13 @@
+file,time,label,lines,duration_s,expected_lines,ovr_first,ovr_last,malformed,problems,instrument,mic_cm,notes
+20261114_210604_smoke.csv,2026-11-14T21:06:04,smoke,938,29.98,938,0,0,0,nan or inf in the data,,10,
+20261114_211135_noise_amp.csv,2026-11-14T21:11:35,noise_amp,938,29.98,938,0,0,0,,guitar,10,
+20261114_211300_ringout_E2_amp.csv,2026-11-14T21:13:00,ringout_E2_amp,625,19.97,625,0,0,0,,guitar,10,
+20261114_211326_ringout_G3_amp.csv,2026-11-14T21:13:26,ringout_G3_amp,626,20.00,626,0,0,0,,guitar,10,
+20261114_211347_ringout_E4_amp.csv,2026-11-14T21:13:47,ringout_E4_amp,626,20.00,626,0,0,0,,guitar,10,
+20261114_211508_tune_E2_amp.csv,2026-11-14T21:15:08,tune_E2_amp,938,29.98,938,0,0,0,,guitar,10,
+20261114_211556_tune_E2_amp_b.csv,2026-11-14T21:15:56,tune_E2_amp_b,938,29.98,938,0,0,0,,guitar,10,
+20261114_211639_changes_amp.csv,2026-11-14T21:16:39,changes_amp,469,14.98,469,0,0,0,,guitar,10,
+20261114_211701_changes_amp_b.csv,2026-11-14T21:17:01,changes_amp_b,469,14.98,469,0,0,0,,guitar,10,
+20261114_211739_mute_A2_amp.csv,2026-11-14T21:17:39,mute_A2_amp,626,20.00,626,0,0,0,,guitar,10,
+20261114_211840_ringout_E1_bass.csv,2026-11-14T21:18:40,ringout_E1_bass,626,20.00,626,0,0,0,,bass,10,
+20261114_211907_ringout_B0_bass.csv,2026-11-14T21:19:07,ringout_B0_bass,626,20.00,626,0,0,0,,bass,10,
