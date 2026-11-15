@@ -70,7 +70,7 @@ The microphone also needs 3.3 V and GND. PC13 is the on-board LED and blinks if 
 
 ### Diagram
 
-<!-- TODO: add diagram here -->
+<img src="images/wiring.png" alt="Wiring diagram" width="600">
 
 ## How it works
 
