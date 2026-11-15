@@ -20,7 +20,6 @@
 #include "main.h"
 #include "dma.h"
 #include "i2s.h"
-#include "stm32f4xx_hal_gpio.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -29,6 +28,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include "stm32f4xx_hal_gpio.h"
 #include "mic.h"
 #include "level.h"
 #include "pitch.h"
@@ -118,22 +118,7 @@ int main(void)
 #if TUNER_CAPTURE
   capture_init(&huart2);
 #endif
-
   cycles_init();
-  // uint32_t start = cycles_get();
-  // uint32_t end = cycles_get();
-  // printf("Cycles own lag %" PRIu32 "\r\n", end - start);
-  // for (size_t i= 0; i < 10; i++){
-  //   start = cycles_get();
-  //   HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_SET);
-  //   HAL_Delay(10);
-  //   HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_RESET);
-  //   end = cycles_get();
-  //   printf("HAL delay 10 lag %" PRIu32 "\r\n", end - start);
-  // }
-  
-
-
   HAL_StatusTypeDef mic_status = mic_start();
   
   if (mic_status == HAL_OK)
@@ -213,13 +198,11 @@ int main(void)
     if (mic_read_block(samples))
     {
       HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_SET);
-      uint32_t start = cycles_get();
       bool got_pitch_result = false;
       pitch_result_t pitch_result;
-      note_result_t note_result;
-      
 
-      bool got_level_result = level_process(samples, MIC_BLOCK_SAMPLES, &dbfs);
+      // not used right now but will be used later, keeping it here to not miss timing/memory issues
+      (void)level_process(samples, MIC_BLOCK_SAMPLES, &dbfs);
 
       convert_32_to_16(samples, buffer, MIC_BLOCK_SAMPLES);
       for (size_t i = 0; i < pushes_per_mic_block; i++)
@@ -229,17 +212,17 @@ int main(void)
           got_pitch_result = true;
         }
       }
-      uint32_t end = cycles_get();
-      if (got_pitch_result && got_level_result)
+      if (got_pitch_result)
       {
-        // float freq_hz = pitch_result.freq_hz;
-        // printf("F,%.2f,%.3f,%d,%" PRIu32 ",%" PRIu32 "\r\n",
-        //      (double)freq_hz, (double)pitch_result.confidence, pitch_result.valid, end - start, mic_get_overrun_count());
-        
-        // note_from_freq(freq_hz, NOTE_A4_DEFAULT_HZ, &note_result);
-        // Fields: frequency, confidence, valid, level, ovr. Drop the cycle count: MARK1 on PB6 still shows timing on the analyser.
-        printf("T,%.2f,%.3f,%d,%.1f,%" PRIu32 "\r\n",
-             (double)pitch_result.freq_hz, (double)pitch_result.confidence, pitch_result.valid, (double)dbfs, mic_get_overrun_count());
+        if (pitch_result.valid && pitch_result.confidence <= PITCH_YIN_THRESHOLD)
+        {
+          note_result_t note_result;
+          bool got_note_result = note_from_freq(pitch_result.freq_hz, NOTE_A4_DEFAULT_HZ, &note_result);
+          if (got_note_result)
+          {
+            printf("Note:%s,%.2f\r\n", note_name(note_result.pitch_class), (double)note_result.cents);
+          }
+        }
       }
       HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_RESET);
     }
