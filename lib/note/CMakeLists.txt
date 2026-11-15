@@ -4,6 +4,4 @@ add_library(note STATIC
 
 target_include_directories(note PUBLIC include)
 
-target_compile_options(note PRIVATE ${TUNER_LIB_WARNINGS})
-
-target_link_libraries(note PRIVATE m)
+target_link_libraries(note PRIVATE m tuner_warnings)

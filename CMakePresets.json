@@ -23,6 +23,11 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
+        },
+        {
+            "name": "Release-capture",
+            "inherits": "Release",
+            "cacheVariables": { "TUNER_CAPTURE": "ON", "TUNER_DEBUG_MARKS": "ON" }
         }
     ],
     "buildPresets": [
@@ -33,6 +38,10 @@
         {
             "name": "Release",
             "configurePreset": "Release"
+        },
+        {
+            "name": "Release-capture",
+            "configurePreset": "Release-capture"
         }
     ]
 }

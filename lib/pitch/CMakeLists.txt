@@ -8,6 +8,4 @@ target_include_directories(pitch
     PRIVATE src
 )
 
-target_compile_options(pitch PRIVATE ${TUNER_LIB_WARNINGS})
-
-target_link_libraries(pitch PRIVATE m)
+target_link_libraries(pitch PRIVATE m tuner_warnings)

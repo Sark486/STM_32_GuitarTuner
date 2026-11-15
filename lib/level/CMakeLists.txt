@@ -6,6 +6,4 @@ add_library(level STATIC
 # PUBLIC: level's own sources and every target that links level see include/.
 target_include_directories(level PUBLIC include)
 
-target_compile_options(level PRIVATE ${TUNER_LIB_WARNINGS})
-
-target_link_libraries(level PRIVATE m)
+target_link_libraries(level PRIVATE m tuner_warnings)

@@ -25,18 +25,15 @@ add_subdirectory(../lib lib)
 # The golden-vector test: a plain C program, no test framework. It also includes
 # the module's internal header, so it gets lib/pitch/src on its include path.
 add_executable(test_pitch test_pitch.c)
-target_link_libraries(test_pitch PRIVATE pitch)
+target_link_libraries(test_pitch PRIVATE pitch tuner_warnings)
 target_include_directories(test_pitch PRIVATE ../lib/pitch/src)
-target_compile_options(test_pitch PRIVATE -Wall -Wextra -Wshadow)
-
-# Note detection test
-add_executable(test_note test_note.c)
-target_link_libraries(test_note PRIVATE note)
-target_include_directories(test_note PRIVATE ../lib/note/src)
-target_compile_options(test_note PRIVATE -Wall -Wextra -Wshadow)
 # Absolute path to the vectors: the test runs from the build folder, so a
 # relative path would break.
 target_compile_definitions(test_pitch PRIVATE VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/vectors")
+
+# Note detection test
+add_executable(test_note test_note.c)
+target_link_libraries(test_note PRIVATE note tuner_warnings)
 
 # CTest judges the test only by its exit code: main() returns 0 when every
 # check passed, non-zero otherwise.
