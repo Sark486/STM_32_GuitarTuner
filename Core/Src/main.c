@@ -25,20 +25,20 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdint.h>
 #include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
-#include "stm32f4xx_hal_gpio.h"
-#include "mic.h"
+#include "cycles.h"
+#include "debug_mark.h"
 #include "level.h"
-#include "pitch.h"
+#include "mic.h"
 #include "note.h"
+#include "pitch.h"
 #if TUNER_CAPTURE
 #include "capture.h"
 #include "replay.h"
 #endif
-#include "cycles.h"
-#include <stddef.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,10 +48,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-static_assert(MIC_BLOCK_SAMPLES % PITCH_BLOCK_SIZE == 0, "MIC_BLOCK_SAMPLES doesn't divide evenly by PITCH_BLOCK_SIZE");
-static_assert(MIC_BLOCK_SAMPLES <= (PITCH_HOP * PITCH_DECIM), "MIC_BLOCK_SAMPLES is bigger than one full hop");
-static const size_t pushes_per_mic_block = MIC_BLOCK_SAMPLES / PITCH_BLOCK_SIZE;
 
 /* USER CODE END PD */
 
@@ -63,14 +59,18 @@ static const size_t pushes_per_mic_block = MIC_BLOCK_SAMPLES / PITCH_BLOCK_SIZE;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+static_assert(MIC_BLOCK_SAMPLES % PITCH_BLOCK_SIZE == 0, "MIC_BLOCK_SAMPLES doesn't divide evenly by PITCH_BLOCK_SIZE");
+static_assert(MIC_BLOCK_SAMPLES <= (PITCH_HOP * PITCH_DECIM), "MIC_BLOCK_SAMPLES is bigger than one full hop");
+static const size_t pushes_per_mic_block = MIC_BLOCK_SAMPLES / PITCH_BLOCK_SIZE;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
-static void convert_32_to_16(int32_t const *samples, int16_t *out, size_t size);
+#if TUNER_CAPTURE
+static void handle_command(pitch_t *pitch_state);
+#endif
 
 /* USER CODE END PFP */
 
@@ -115,19 +115,17 @@ int main(void)
 
   mic_init(&hi2s2);
   level_init(mic_get_sample_rate_hz());
+
 #if TUNER_CAPTURE
   capture_init(&huart2);
 #endif
+
   cycles_init();
-  HAL_StatusTypeDef mic_status = mic_start();
-  
-  if (mic_status == HAL_OK)
+
+  if (mic_start() != HAL_OK)
   {
-    printf("Mic started\r\n");
-  }
-  else
-  {
-    printf("Mic start failed: %d\r\n", mic_status);
+    printf("Mic start failed\r\n");
+    Error_Handler();
   }
 
   static int32_t samples[MIC_BLOCK_SAMPLES];
@@ -136,11 +134,6 @@ int main(void)
   static int16_t buffer[MIC_BLOCK_SAMPLES];
   pitch_init(&pitch_state);
 
-
-#if TUNER_CAPTURE
-  static bool capture_filled = false; // the capture buffer holds a recording (c) or an upload (u)
-#endif
-  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -150,61 +143,19 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    uint8_t in[1];
-    if (HAL_UART_Receive(&huart2, in, 1, 0) == HAL_OK)
-    {
 #if TUNER_CAPTURE
-      if(in[0] == 'c'){
-        printf("Capture start\r\n");
-        uint32_t start = HAL_GetTick();
-
-        bool record_result = capture_record();
-        capture_filled = record_result;
-        printf("Record result=%s time=%" PRIu32 "\r\n", record_result? "OK" : "FAILED", HAL_GetTick() - start);
-        if (record_result)
-        {
-          bool send_result = capture_send();
-          printf("Send result=%s\r\n", send_result? "OK" : "FAILED");
-        }
-      }
-      else if (in[0] == 'u')
-      {
-        // one recording from the PC into the capture buffer (tools/replay_compare.py)
-        capture_filled = capture_receive();
-      }
-      else if (in[0] == 'r')
-      {
-        // the capture buffer through the pitch module, every push timed
-        if (capture_filled)
-        {
-          replay_run(&pitch_state, capture_get_buffer(), capture_get_sample_count());
-          mic_resync(); // main was busy for about a second: skip the halves that piled up
-        }
-        else
-        {
-          printf("REPLAY FAILED no data, send c or u first\r\n");
-        }
-      }
-
-      // Discard any bytes that arrived while the board was busy.
-      uint8_t discard;
-      while (HAL_UART_Receive(&huart2, &discard, 1, 0) == HAL_OK)
-      {
-        // ignore it
-      }
-      pitch_init(&pitch_state);
+    handle_command(&pitch_state);
 #endif
-    }
     if (mic_read_block(samples))
     {
-      HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_SET);
+      DEBUG_MARK1(GPIO_PIN_SET);
       bool got_pitch_result = false;
       pitch_result_t pitch_result;
 
       // not used right now but will be used later, keeping it here to not miss timing/memory issues
       (void)level_process(samples, MIC_BLOCK_SAMPLES, &dbfs);
 
-      convert_32_to_16(samples, buffer, MIC_BLOCK_SAMPLES);
+      mic_to_int16(samples, buffer, MIC_BLOCK_SAMPLES);
       for (size_t i = 0; i < pushes_per_mic_block; i++)
       {
         if (pitch_push(&pitch_state, buffer + (i * PITCH_BLOCK_SIZE), PITCH_BLOCK_SIZE, &pitch_result))
@@ -214,7 +165,7 @@ int main(void)
       }
       if (got_pitch_result)
       {
-        if (pitch_result.valid && pitch_result.confidence <= PITCH_YIN_THRESHOLD)
+        if (pitch_result.valid && pitch_result.confidence <= PITCH_CONF_THRESHOLD)
         {
           note_result_t note_result;
           bool got_note_result = note_from_freq(pitch_result.freq_hz, NOTE_A4_DEFAULT_HZ, &note_result);
@@ -224,7 +175,7 @@ int main(void)
           }
         }
       }
-      HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_RESET);
+      DEBUG_MARK1(GPIO_PIN_RESET);
     }
   }
   /* USER CODE END 3 */
@@ -276,14 +227,58 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-static void convert_32_to_16(int32_t const *samples, int16_t *out, size_t size)
+#if TUNER_CAPTURE
+// Development commands over UART: c = record and send, u = upload, r = replay
+static void handle_command(pitch_t *pitch_state)
 {
-  for(size_t i = 0; i < size; i++)
+  uint8_t command;
+  static bool capture_filled = false; // the capture buffer holds a recording (c) or an upload (u)
+  if (HAL_UART_Receive(&huart2, &command, 1, 0) != HAL_OK)
   {
-    out[i] = (int16_t)(samples[i] >> 8);
+    return;
   }
+  if (command == 'c')
+  {
+    printf("Capture start\r\n");
+    uint32_t start = HAL_GetTick();
+
+    bool record_result = capture_record();
+    capture_filled = record_result;
+    printf("Record result=%s time=%" PRIu32 "\r\n", record_result ? "OK" : "FAILED", HAL_GetTick() - start);
+    if (record_result)
+    {
+      bool send_result = capture_send();
+      printf("Send result=%s\r\n", send_result ? "OK" : "FAILED");
+    }
+  }
+  else if (command == 'u')
+  {
+    // one recording from the PC into the capture buffer (tools/replay_compare.py)
+    capture_filled = capture_receive();
+  }
+  else if (command == 'r')
+  {
+    // the capture buffer through the pitch module, every push timed
+    if (capture_filled)
+    {
+      replay_run(pitch_state, capture_get_buffer(), capture_get_sample_count());
+      mic_resync(); // main was busy for about a second: skip the halves that piled up
+    }
+    else
+    {
+      printf("REPLAY FAILED no data, send c or u first\r\n");
+    }
+  }
+
+  // Discard any bytes that arrived while the board was busy.
+  uint8_t discard;
+  while (HAL_UART_Receive(&huart2, &discard, 1, 0) == HAL_OK)
+  {
+    // ignore it
+  }
+  pitch_init(pitch_state);
 }
+#endif
 
 /* USER CODE END 4 */
 
@@ -298,6 +293,10 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    for (volatile uint32_t i = 0; i < 1000000U; i++)
+    {
+    }
   }
   /* USER CODE END Error_Handler_Debug */
 }
