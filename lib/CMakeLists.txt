@@ -13,3 +13,4 @@ set(TUNER_LIB_WARNINGS
 
 add_subdirectory(level)
 add_subdirectory(pitch)
+add_subdirectory(note)

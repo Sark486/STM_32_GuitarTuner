@@ -15,6 +15,7 @@
 #define PITCH_YIN_W            (PITCH_WINDOW - PITCH_TAU_MAX - 1)               // number of samples compared at each candidate period
 #define PITCH_TAU_MIN          5U                                               // floor(8000 / 1400): highest note 1400 Hz = 5.71 samples; rounding down leaves lag 4 as the left neighbour
 #define PITCH_YIN_THRESHOLD    0.15f                                            // first lag with d' below this is the period dip
+#define PITCH_CONF_THRESHOLD   0.15f                                            // confidence threshold, the values below this considered to have detected pitch
 #define PITCH_GATE             0.5f                                             // result valid only if confidence <= this
 #define PITCH_REFINE_SEARCH    PITCH_DECIM                                      // 1 lag at 8kHz is 4 lags at 32kHz
 #define PITCH_REFINE_MAX_LAG   (PITCH_TAU_MAX * PITCH_DECIM + PITCH_DECIM + 2U) // 1110: top of the 8 kHz search in 32 kHz lags plus space for the parabola and neighbours
@@ -24,7 +25,8 @@
 #define PITCH_FS               (PITCH_FS_IN / PITCH_DECIM)                      // decimated rate, 8000 Hz
 
 
-typedef struct {
+typedef struct 
+{
   float freq_hz; // always filled, use only if 'valid' is true; NaN when the period is not usable
   float confidence; // lower is better
   float tau; // period in 8 kHz samples, before fine-tuning on 32kHz
@@ -34,7 +36,8 @@ typedef struct {
 } pitch_result_t;
 
 
-typedef struct{
+typedef struct
+{
   // fields are private
   float fir_delay[PITCH_FIR_TAPS - 1 + PITCH_BLOCK_SIZE]; // filter input, scaled to +-1.0. It holds the last PITCH_FIR_TAPS - 1 samples of the previous block, followed by the current block
   float window[PITCH_WINDOW]; // the latest PITCH_WINDOW decimated samples (8 kHz, 128 ms), oldest first; YIN runs on it every hop

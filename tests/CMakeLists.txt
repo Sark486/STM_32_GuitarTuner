@@ -28,6 +28,12 @@ add_executable(test_pitch test_pitch.c)
 target_link_libraries(test_pitch PRIVATE pitch)
 target_include_directories(test_pitch PRIVATE ../lib/pitch/src)
 target_compile_options(test_pitch PRIVATE -Wall -Wextra -Wshadow)
+
+# Note detection test
+add_executable(test_note test_note.c)
+target_link_libraries(test_note PRIVATE note)
+target_include_directories(test_note PRIVATE ../lib/note/src)
+target_compile_options(test_note PRIVATE -Wall -Wextra -Wshadow)
 # Absolute path to the vectors: the test runs from the build folder, so a
 # relative path would break.
 target_compile_definitions(test_pitch PRIVATE VECTORS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/vectors")
@@ -35,3 +41,4 @@ target_compile_definitions(test_pitch PRIVATE VECTORS_DIR="${CMAKE_CURRENT_SOURC
 # CTest judges the test only by its exit code: main() returns 0 when every
 # check passed, non-zero otherwise.
 add_test(NAME test_pitch COMMAND test_pitch)
+add_test(NAME test_note COMMAND test_note)
