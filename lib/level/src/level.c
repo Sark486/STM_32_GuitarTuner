@@ -3,7 +3,7 @@
 #include <math.h>
 
 #define DC_BLOCKER_R  0.999f
-#define WINDOW_MS     128U
+#define WINDOW_MS     32U
 #define FULL_SCALE    8388608.0f // 2^23 = 8 388 608 for 24-bit samples
 #define LEVEL_FLOOR   1e-6f      // -120 dBFS: 20 * log10(1e-6) = -120
 

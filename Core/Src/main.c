@@ -32,6 +32,7 @@
 #include "mic.h"
 #include "level.h"
 #include "pitch.h"
+#include "note.h"
 #if TUNER_CAPTURE
 #include "capture.h"
 #include "replay.h"
@@ -213,23 +214,32 @@ int main(void)
     {
       HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_SET);
       uint32_t start = cycles_get();
-      bool got_result = false;
-      pitch_result_t result;
+      bool got_pitch_result = false;
+      pitch_result_t pitch_result;
+      note_result_t note_result;
       
-      (void)level_process(samples, MIC_BLOCK_SAMPLES, &dbfs);
+
+      bool got_level_result = level_process(samples, MIC_BLOCK_SAMPLES, &dbfs);
+
       convert_32_to_16(samples, buffer, MIC_BLOCK_SAMPLES);
       for (size_t i = 0; i < pushes_per_mic_block; i++)
       {
-        if (pitch_push(&pitch_state, buffer + (i * PITCH_BLOCK_SIZE), PITCH_BLOCK_SIZE, &result))
+        if (pitch_push(&pitch_state, buffer + (i * PITCH_BLOCK_SIZE), PITCH_BLOCK_SIZE, &pitch_result))
         {
-          got_result = true;
+          got_pitch_result = true;
         }
       }
       uint32_t end = cycles_get();
-      if (got_result)
+      if (got_pitch_result && got_level_result)
       {
-        printf("F,%.2f,%.3f,%d,%" PRIu32 ",%" PRIu32 "\r\n",
-             (double)result.freq_hz, (double)result.confidence, result.valid, end - start, mic_get_overrun_count());
+        // float freq_hz = pitch_result.freq_hz;
+        // printf("F,%.2f,%.3f,%d,%" PRIu32 ",%" PRIu32 "\r\n",
+        //      (double)freq_hz, (double)pitch_result.confidence, pitch_result.valid, end - start, mic_get_overrun_count());
+        
+        // note_from_freq(freq_hz, NOTE_A4_DEFAULT_HZ, &note_result);
+        // Fields: frequency, confidence, valid, level, ovr. Drop the cycle count: MARK1 on PB6 still shows timing on the analyser.
+        printf("T,%.2f,%.3f,%d,%.1f,%" PRIu32 "\r\n",
+             (double)pitch_result.freq_hz, (double)pitch_result.confidence, pitch_result.valid, (double)dbfs, mic_get_overrun_count());
       }
       HAL_GPIO_WritePin(MARK1_GPIO_Port, MARK1_Pin, GPIO_PIN_RESET);
     }

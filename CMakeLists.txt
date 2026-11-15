@@ -41,6 +41,7 @@ add_subdirectory(cmake/stm32cubemx)
 add_subdirectory(lib)
 target_compile_options(pitch PRIVATE -O2)
 target_compile_options(level PRIVATE -Os)
+target_compile_options(note PRIVATE -Os)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -84,6 +85,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     # Add user defined libraries
     level
     pitch
+    note
 )
 
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -u _printf_float)
